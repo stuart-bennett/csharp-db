@@ -78,4 +78,25 @@ namespace Database.Parser.Test
         public static Token Int(string value) =>
             new Token(value, Token.Type.Int);
     }
+
+    public class ParserTests
+    {
+        [Fact]
+        public void ShouldDetectInsertStatement()
+        {
+            const string Sql = "INSERT INTO TestTable (Id) VALUES (1)";
+            Ast ast = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            Assert.Equal(Operation.Type.INSERT_STATEMENT, ast.Value.T);
+            Assert.Equal(Operation.Type.TABLE_NAME, ast.Left.Value.T);
+            Assert.Equal("TestTable", ast.Left.Left.Left.Value.Value);
+        }
+
+        [Fact]
+        public void ShouldDetectSelectStatement()
+        {
+            const string Sql = "SELECT Id FROM TestTable";
+            Ast ast = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            Assert.Equal(Operation.Type.SELECT_STATEMENT, ast.Value.T);
+        }
+    }
 }

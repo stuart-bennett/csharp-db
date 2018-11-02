@@ -1,14 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
+
+/**
+ *   Grammar is based on "SQL Minimum Grammar"
+ *   https://docs.microsoft.com/en-us/sql/odbc/reference/appendixes/sql-minimum-grammar?view=sql-server-2017
+ **/
 
 namespace Database.Parser
 {
     static class Contract
     {
         const string NullContractError = "Must not be null";
-        public static void NotNull(string value, string argName)
+        public static void NotNull(object value, string argName)
         {
             if (value == null)
                 throw new ArgumentException(NullContractError, argName);
@@ -40,7 +46,7 @@ namespace Database.Parser
             Contract.NotNull(pattern, nameof(pattern));
 
             _tokenType = tokenType;
-            _compiledRegEx =new Lazy<Regex>(
+            _compiledRegEx = new Lazy<Regex>(
                 () => new Regex("^" + pattern, RegexOptions.Compiled));
         }
 
@@ -55,6 +61,213 @@ namespace Database.Parser
             return (true,
                 new Token(match.Value, _tokenType),
                 value.Substring(match.Index + match.Length));
+        }
+    }
+
+    public sealed class TableIdentifier
+    {
+        public static Ast Consume(Parser parser)
+        {
+            return new Ast(
+                new Operation(Operation.Type.TABLE_IDENTIFIER),
+                UserDefinedName.Consume(parser));
+        }
+    }
+
+    // user-defined-name ::= letter[digit | letter | _]...
+    public sealed class UserDefinedName
+    {
+        public static Ast Consume(Parser parser)
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append(parser.ConsumeLetter().First());
+            sb.Append(parser
+                .ConsumeLetterOrDigit()
+                .TakeWhile(x => x != default(char))
+                .ToArray());
+
+            return new Ast(
+                new Operation(Operation.Type.USER_DEFINED_NAME, sb.ToString()));
+        }
+    }
+
+    public sealed class TableName
+    {
+        public static Ast Consume(Parser parser)
+        {
+            return new Ast(
+                new Operation(Operation.Type.TABLE_NAME),
+                TableIdentifier.Consume(parser));
+        }
+    }
+
+    // INSERT INTO table-name [( column-identifier [, column-identifier]...)] VALUES (insert-value[, insert-value]... )
+    public sealed class InsertStatement
+    {
+        public static Ast Consume(Parser parser)
+        {
+            parser.Take("INSERT");
+            parser.Take("INTO");
+            return new Ast(
+                new Operation(Operation.Type.INSERT_STATEMENT),
+                TableName.Consume(parser));
+        }
+    }
+
+    // select-statement ::=
+    // SELECT [ALL | DISTINCT] select-list
+    // FROM table-reference-list
+    // [WHERE search-condition]
+    // [order-by-clause]
+    public sealed class SelectStatement
+    {
+        public static Ast Consume(Parser parser)
+        {
+            return new Ast(new Operation(Operation.Type.SELECT_STATEMENT), SelectSublist.Consume(parser));
+        }
+    }
+
+    // select-list ::= * | select-sublist [, select-sublist]... (select-list cannot contain parameters.)
+    public sealed class SelectList
+    {
+        public static Ast Consume(Parser parser)
+        {
+            return new Ast(new Operation(Operation.Type.SELECT_LIST), SelectSublist.Consume(parser));
+        }
+    }
+
+    // select-sublist ::= expression
+    public sealed class SelectSublist
+    {
+        public static Ast Consume(Parser parser)
+        {
+            return new Ast(new Operation(Operation.Type.SELECT_SUBLIST), Expression.Consume(parser));
+        }
+    }
+
+    // expression ::= term | expression {+|–} term
+    public sealed class Expression
+    {
+        public static Ast Consume(Parser parser)
+        {
+            return null;
+            // return new Ast(new Operation(Operation.Type.EXPRESSION)
+        }
+    }
+
+    public sealed class Parser
+    {
+        private readonly IList<Token> _tokens;
+        private int _position;
+        private int _subPosition;
+        private Token _current;
+
+        public Parser(IList<Token> tokens)
+        {
+            Contract.NotNull(tokens, nameof(tokens));
+            _tokens = tokens;
+            _position = -1;
+            _subPosition = -1;
+            MoveNext();
+        }
+
+        public IEnumerable<char> ConsumeLetterOrDigit() => ConsumeSingle(Char.IsLetterOrDigit);
+        public IEnumerable<char> ConsumeLetter() => ConsumeSingle(Char.IsLetter);
+
+        private IEnumerable<char> ConsumeSingle(Func<char, bool> predicate)
+        {
+
+            while (++_subPosition < _current.Value.Length)
+            {
+                char c = _current.Value[_subPosition];
+                if (!predicate(c))
+                {
+                    throw new Exception();
+                }
+
+                yield return c;
+            }
+
+            _subPosition = -1;
+            MoveNext();
+
+            // signal end of token
+            yield return default(char);
+        }
+
+        public Ast Parse()
+        {
+            return ParseStatement();
+            // throw new Exception($"Unregonised token '{_current}'");
+        }
+
+        public void Take(string value)
+        {
+            if (!_current.Value.Equals(value))
+            {
+                throw new Exception();
+            }
+
+            MoveNext();
+        }
+
+        private Ast ParseStatement()
+        {
+            return InsertStatement.Consume(this);
+            return SelectStatement.Consume(this);
+        }
+
+        private bool MoveNext()
+        {
+            if (_position + 1 < _tokens.Count())
+            {
+                _current = _tokens[++_position];
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    public class Ast
+    {
+        public Ast (Operation value, Ast left = null, Ast right = null)
+        {
+            Contract.NotNull(value, nameof(value));
+            Value = value;
+            Left = left;
+            Right = right;
+        }
+
+        public Operation Value { get; }
+
+        public Ast Left { get; }
+
+        public Ast Right { get; }
+    }
+
+    public sealed class Operation
+    {
+        public Operation(Type type, string value = null)
+        {
+            T = type;
+            Value = value;
+        }
+
+        public Type T { get; }
+
+        public string Value { get; }
+
+        public enum Type
+        {
+            INSERT_STATEMENT,
+            SELECT_STATEMENT,
+            SELECT_SUBLIST,
+            EXPRESSION,
+            TABLE_NAME,
+            TABLE_IDENTIFIER,
+            USER_DEFINED_NAME,
+            SELECT_LIST
         }
     }
 
@@ -142,5 +355,7 @@ namespace Database.Parser
             return TokenType == other.TokenType &&
                 Value.Equals(other.Value, StringComparison.OrdinalIgnoreCase);
         }
+
+        public override string ToString() => $"{{ Type: {TokenType}, Value: {Value} }}";
     }
 }
