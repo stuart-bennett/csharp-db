@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using Database.Parser.Lexing;
 using Xunit;
 
 namespace Database.Parser.Test
@@ -85,18 +86,49 @@ namespace Database.Parser.Test
         public void ShouldDetectInsertStatement()
         {
             const string Sql = "INSERT INTO TestTable (Id) VALUES (1)";
-            Ast ast = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
-            Assert.Equal(Operation.Type.INSERT_STATEMENT, ast.Value.T);
-            Assert.Equal(Operation.Type.TABLE_NAME, ast.Left.Value.T);
-            Assert.Equal("TestTable", ast.Left.Left.Left.Value.Value);
+            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            Assert.True(isValid);
         }
 
         [Fact]
-        public void ShouldDetectSelectStatement()
+        public void WithNoExplicitColumnNames()
+        {
+            const string Sql = "INSERT INTO TestTable VALUES (1)";
+            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            Assert.True(isValid);
+        }
+
+        [Fact]
+        public void WithColumn()
         {
             const string Sql = "SELECT Id FROM TestTable";
-            Ast ast = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
-            Assert.Equal(Operation.Type.SELECT_STATEMENT, ast.Value.T);
+            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            Assert.True(isValid);
+        }
+
+        [Fact]
+        public void WithColumns()
+        {
+            const string Sql = "SELECT Id, Name, FavColour FROM TestTable";
+            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            Assert.True(isValid);
+        }
+
+        [Fact]
+        public void WithAsterisk()
+        {
+            const string Sql = "SELECT * FROM TestTable";
+            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            Assert.True(isValid);
+        }
+
+        [Fact]
+        public void ShouldFailIncorrectInsertSyntax()
+        {
+            // Missing "INTO"
+            const string Sql = "INSERT TestTable (Id) VALUES (1)";
+            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            Assert.False(isValid);
         }
     }
 }
