@@ -90,10 +90,12 @@ namespace Database.Parser
             return true;
         }
 
-        // Like terminal, will determine if current token matches byt
+        // Like terminal, will determine if current token matches but
         // WON'T traverse the token stream
         public bool Peek(string value)
         {
+            // we know we're at the end of token stream so can't match anything
+            if (_current.TokenType == Token.Type.EOF) return false;
             return _current.Value.Equals(value);
         }
 
