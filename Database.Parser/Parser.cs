@@ -109,11 +109,11 @@ namespace Database.Parser
         {
             while (++_subPosition < _current.Value.Length - 1)
             {
-                char c = _current.Value[_subPosition];
+                char c = _current.ValueAt(_subPosition);
                 yield return (predicate(c), false);
             }
 
-            bool finalChar = predicate(_current.Value[_subPosition]);
+            bool finalChar = predicate(_current.ValueAt(_subPosition));
             _subPosition = -1;
             MoveNext();
 
@@ -125,14 +125,15 @@ namespace Database.Parser
         private (int position, int subPosition, Token token) Checkpoint() =>
             (_position, _subPosition, _current);
 
-        private bool MoveNext()
+        private void MoveNext()
         {
             if (_position + 1 < _tokens.Count())
             {
                 _current = _tokens[++_position];
-                return true;
+                return;
             }
-            return false;
+
+            _current = new Token(string.Empty, Token.Type.EOF);
         }
 
         // Puts the state of progress through the token stream back

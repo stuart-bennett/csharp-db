@@ -11,7 +11,8 @@ namespace Database.Parser.Lexing
             Discard,
             Id,
             Int,
-            Reserved
+            Reserved,
+            EOF
         }
 
         public Token(string value, Type tokenType)
@@ -24,6 +25,13 @@ namespace Database.Parser.Lexing
         public string Value { get; }
 
         public Type TokenType { get; }
+
+        public char ValueAt(int position)
+        {
+            Contract.IsPositive(position, nameof(position));
+            if (TokenType == Type.EOF) return char.MinValue;
+            return Value[position];
+        }
 
         public bool Equals(Token other)
         {
