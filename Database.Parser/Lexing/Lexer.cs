@@ -9,7 +9,7 @@ namespace Database.Parser.Lexing
     {
         // Order matters! Lex() will use the first matching pattern
         // so more general patterns should appear later
-        private static readonly TokenExpression[] s_language = new TokenExpression[22]
+        private static readonly TokenExpression[] s_language = new TokenExpression[23]
         {
             new TokenExpression("\\s+", Token.Type.Discard),
             new TokenExpression("DELETE", Token.Type.Reserved),
@@ -28,6 +28,7 @@ namespace Database.Parser.Lexing
             new TokenExpression("\\+", Token.Type.Reserved),
             new TokenExpression("-", Token.Type.Reserved),
             new TokenExpression("=", Token.Type.Reserved),
+            new TokenExpression("\\.", Token.Type.Reserved),
             new TokenExpression(",", Token.Type.Reserved),
             new TokenExpression("\"", Token.Type.Reserved),
             new TokenExpression("\\*", Token.Type.Id),

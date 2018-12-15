@@ -144,7 +144,9 @@
         public static bool Consume(Parser parser)
         {
             if (!parser.Terminal("SELECT")) return false;
-            return SelectList.Consume(parser);
+            if (!SelectList.Consume(parser)) return false;
+            if (!parser.Terminal("FROM")) return false;
+            return TableReferenceList.Consume(parser);
         }
     }
 
@@ -172,6 +174,28 @@
 
             return true;
         }
+    }
+
+    // table-reference-list ::= table-reference [,table-reference]...
+    public sealed class TableReferenceList
+    {
+        public static bool Consume(Parser parser)
+        {
+            if (!TableReference.Consume(parser)) return false;
+            while (parser.Peek(","))
+            {
+                parser.Terminal(",");
+                if (!TableReference.Consume(parser)) return false;
+            }
+
+            return true;
+        }
+    }
+
+    // table-reference ::= table-name
+    public sealed class TableReference
+    {
+        public static bool Consume(Parser parser) => TableName.Consume(parser);
     }
 
     // select-sublist ::= expression
@@ -221,7 +245,10 @@
         private static bool _1(Parser parser)
         {
             // With the table name prefix
-            return TableName.Consume(parser) && parser.Terminal(".") && ColumnIdentifier.Consume(parser);
+            if (!parser.Terminal("[")) return false;
+            if (!TableName.Consume(parser)) return false;
+            if (!parser.Terminal("}")) return false;
+            return parser.Terminal(".") && ColumnIdentifier.Consume(parser);
         }
 
         private static bool _2(Parser parser)
