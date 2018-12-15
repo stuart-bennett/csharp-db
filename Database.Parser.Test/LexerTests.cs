@@ -99,6 +99,14 @@ namespace Database.Parser.Test
         }
 
         [Fact]
+        public void WithoutTableIdentifier()
+        {
+            const string Sql = "SELECT * FROM";
+            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            Assert.False(isValid);
+        }
+
+        [Fact]
         public void WithColumn()
         {
             const string Sql = "SELECT Id FROM TestTable";
