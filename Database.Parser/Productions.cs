@@ -13,6 +13,7 @@
     {
         public static bool Consume(Parser parser)
         {
+            Ast node = new Ast(Ast.NodeTypes.String, parser.CurrentValue);
             // must start with a letter
             (bool match, bool end) = parser.ConsumeLetter();
             if (!match) return false;
@@ -22,6 +23,7 @@
                 if (!match) return false;
             }
 
+            parser.AddNode(node);
             return true;
         }
     }
@@ -144,8 +146,11 @@
         public static bool Consume(Parser parser)
         {
             if (!parser.Terminal("SELECT")) return false;
+            parser.AstDown(new Ast(Ast.NodeTypes.Select));
             if (!SelectList.Consume(parser)) return false;
+            parser.AstUp();
             if (!parser.Terminal("FROM")) return false;
+            parser.AstDown(new Ast(Ast.NodeTypes.TableName));
             return TableReferenceList.Consume(parser);
         }
     }
@@ -160,7 +165,9 @@
 
         private static bool _1(Parser parser)
         {
-            return parser.Terminal("*");
+            if (!parser.Terminal("*")) return false;
+            parser.AddNode(new Ast(Ast.NodeTypes.String, "*"));
+            return true;
         }
 
         private static bool _2(Parser parser)
@@ -253,8 +260,9 @@
 
         private static bool _2(Parser parser)
         {
-            // witthout the table name prefix
-            return ColumnIdentifier.Consume(parser);
+            // without the table name prefix
+            if (!ColumnIdentifier.Consume(parser)) return false;
+            return true;
         }
     }
 

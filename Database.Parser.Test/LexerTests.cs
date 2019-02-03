@@ -86,7 +86,7 @@ namespace Database.Parser.Test
         public void ShouldDetectInsertStatement()
         {
             const string Sql = "INSERT INTO TestTable (Id) VALUES (1)";
-            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            (_, bool isValid) = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
             Assert.True(isValid);
         }
 
@@ -94,7 +94,7 @@ namespace Database.Parser.Test
         public void WithNoExplicitColumnNames()
         {
             const string Sql = "INSERT INTO TestTable VALUES (1)";
-            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            (_, bool isValid) = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
             Assert.True(isValid);
         }
 
@@ -102,7 +102,7 @@ namespace Database.Parser.Test
         public void WithoutTableIdentifier()
         {
             const string Sql = "SELECT * FROM";
-            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            (_, bool isValid) = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
             Assert.False(isValid);
         }
 
@@ -110,7 +110,7 @@ namespace Database.Parser.Test
         public void WithColumn()
         {
             const string Sql = "SELECT Id FROM TestTable";
-            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            (_, bool isValid) = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
             Assert.True(isValid);
         }
 
@@ -118,7 +118,7 @@ namespace Database.Parser.Test
         public void WithColumns()
         {
             const string Sql = "SELECT Id, Name, FavColour FROM TestTable";
-            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            (_, bool isValid) = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
             Assert.True(isValid);
         }
 
@@ -126,7 +126,7 @@ namespace Database.Parser.Test
         public void WithAsterisk()
         {
             const string Sql = "SELECT * FROM TestTable";
-            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            (_, bool isValid) = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
             Assert.True(isValid);
         }
 
@@ -135,8 +135,45 @@ namespace Database.Parser.Test
         {
             // Missing "INTO"
             const string Sql = "INSERT TestTable (Id) VALUES (1)";
-            bool isValid = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            (_, bool isValid) = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
             Assert.False(isValid);
+        }
+    }
+
+    public class AstTests
+    {
+        [Fact]
+        public void WildcardSelect()
+        {
+            const string Sql = "SELECT * FROM TestTable";
+            (Ast ast, _) = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            Assert.NotNull(ast);
+            Assert.Equal(Ast.NodeTypes.Root, ast.Node);
+            Assert.Equal(Ast.NodeTypes.Select, ast.Children[0].Node);
+            Assert.Equal(Ast.NodeTypes.String, ast.Children[0].Children.First().Node);
+            Assert.Equal("*", ast.Children[0].Children[0].Value);
+            Assert.Equal(Ast.NodeTypes.TableName, ast.Children[1].Node);
+            Assert.Equal(Ast.NodeTypes.String, ast.Children[1].Children[0].Node);
+            Assert.Equal("TestTable", ast.Children[1].Children[0].Value);
+        }
+
+        [Fact]
+        public void FieldListSelect()
+        {
+            const string Sql = "SELECT FirstName, LastName FROM Users";
+            const int NFields = 2;
+            (Ast ast, _) = new Parser(Lexer.Lex(Sql).ToArray()).Parse();
+            Assert.NotNull(ast);
+            Assert.Equal(Ast.NodeTypes.Root, ast.Node);
+            Assert.Equal(Ast.NodeTypes.Select, ast.Children[0].Node);
+            Assert.Equal(NFields, ast.Children[0].Children.Count());
+            Assert.Equal(Ast.NodeTypes.String, ast.Children[0].Children[0].Node);
+            Assert.Equal(Ast.NodeTypes.String, ast.Children[0].Children[1].Node);
+            Assert.Equal("FirstName", ast.Children[0].Children[0].Value);
+            Assert.Equal("LastName", ast.Children[0].Children[1].Value);
+            Assert.Equal(Ast.NodeTypes.TableName, ast.Children[1].Node);
+            Assert.Equal(Ast.NodeTypes.String, ast.Children[1].Children[0].Node);
+            Assert.Equal("Users", ast.Children[1].Children[0].Value);
         }
     }
 }

@@ -1,11 +1,60 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace Database.Parser
 {
     using Lexing;
     using Utils;
+
+    public class Ast
+    {
+        public enum NodeTypes
+        {
+            Root,
+            Select,
+            TableName,
+            String,
+            Int
+        }
+
+        public Ast(NodeTypes node, string value = "")
+        {
+            Node = node;
+            Value = value;
+            Children = new List<Ast>();
+        }
+
+        public Ast(NodeTypes node, IList<Ast> children, string value = "")
+        {
+            Contract.NotNull(children, nameof(children));
+            Node = node;
+            Value = value;
+            Children = children;
+        }
+
+        public NodeTypes Node { get; }
+
+        public string Value { get; }
+
+        public IList<Ast> Children { get; }
+
+        public string ToString(int indentLevel)
+        {
+
+            StringBuilder sb = new StringBuilder($"{Node} ({Value})");
+            sb.AppendLine();
+            foreach (Ast child in Children)
+            {
+                sb.AppendFormat("{0}-{1}", string.Join(string.Empty, Enumerable.Repeat("  ", indentLevel)), child.ToString(indentLevel + 1));
+            }
+
+            return sb.ToString();
+        }
+
+        public override string ToString() => ToString(0);
+    }
 
     public sealed class Parser
     {
@@ -22,6 +71,12 @@ namespace Database.Parser
         // The token at the current position in the token stream
         private Token _current;
 
+        // The abstract syntax that is built as parsing takes place
+        private Ast _ast;
+
+        // Tracks the parent node of _ast (null if it's the root)
+        private Ast _astParentNode;
+
         public Parser(IList<Token> tokens)
         {
             Contract.NotNull(tokens, nameof(tokens));
@@ -31,7 +86,11 @@ namespace Database.Parser
 
             // Moves to first token
             MoveNext();
+            _ast = new Ast(Ast.NodeTypes.Root);
+            _astParentNode = null;
         }
+
+        public string CurrentValue => _current.Value;
 
         // Move through current token one char at a time,
         // attempting to match common patterns
@@ -59,9 +118,29 @@ namespace Database.Parser
         }
 
         // Entry point
-        public bool Parse()
+        public (Ast, bool) Parse()
         {
-            return Statement.Consume(this);
+            return (_ast, Statement.Consume(this));
+        }
+
+        public void AstUp()
+        {
+            if (_astParentNode == null)
+                throw new InvalidOperationException();
+
+            _ast = _astParentNode;
+        }
+
+        public void AstDown(Ast astNode)
+        {
+            _ast.Children.Add(astNode);
+            _astParentNode = _ast;
+            _ast = astNode;
+        }
+
+        public void AddNode(Ast astNode)
+        {
+            _ast.Children.Add(astNode);
         }
 
         // Determines if the current token is a match to @value

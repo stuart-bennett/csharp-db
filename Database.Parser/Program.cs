@@ -25,7 +25,9 @@ namespace Database.Parser
                         t => string.Format("{0}: {1}", t.TokenType, t.Value))));
 
             Parser parser = new Parser(tokens.ToArray());
-            Console.WriteLine($"Does parse? {parser.Parse()}");
+            (Ast ast, bool doesParse) = parser.Parse();
+            Console.WriteLine($"Does parse? {doesParse}");
+            Console.WriteLine($"AST: {ast}");
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
         }
